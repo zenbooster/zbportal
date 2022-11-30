@@ -2,11 +2,16 @@ import uuid
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_sessionstore import Session
+from flask_session_captcha import FlaskSessionCaptcha
 
 # init SQLAlchemy so we can use it later in our models
 db = SQLAlchemy()
+captcha = None
 
 def create_app(host, port, usr, pwd):
+    global captcha
+
     app = Flask(__name__)
     app.config['SECRET_KEY'] = str(uuid.uuid4())
 
@@ -22,6 +27,19 @@ def create_app(host, port, usr, pwd):
     app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 
     db.init_app(app)
+
+    app.config['CAPTCHA_ENABLE'] = True
+    app.config['CAPTCHA_LENGTH'] = 5
+    app.config['CAPTCHA_WIDTH'] = 160
+    app.config['CAPTCHA_HEIGHT'] = 60
+    # In case you want to use another key in your session to store the captcha:
+    app.config['CAPTCHA_SESSION_KEY'] = 'captcha_image'
+    app.config['SESSION_TYPE'] = 'sqlalchemy'
+    # Enables server session
+    Session(app)
+    # Initialize FlaskSessionCaptcha
+    with app.app_context():
+        captcha = FlaskSessionCaptcha(app)
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'

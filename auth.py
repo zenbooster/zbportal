@@ -1,20 +1,24 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required
+from flask_sessionstore import Session
 from .models import User
-from . import db
+from . import db, captcha
 
 auth = Blueprint('auth', __name__)
 
 @auth.route('/login')
 def login():
-    return render_template('login.html')
+    res = render_template('login.html')
+    session['email'] = ''
+    session['remember'] = ''
+    return res
 
 @auth.route('/login', methods=['POST'])
 def login_post():
-    email = request.form.get('email')
+    session['email'] = email = request.form.get('email')
     password = request.form.get('password')
-    remember = True if request.form.get('remember') else False
+    session['remember'] = remember = True if request.form.get('remember') else False
 
     user = User.query.filter_by(email=email).first()
 
@@ -30,14 +34,30 @@ def login_post():
 
 @auth.route('/signup')
 def signup():
-    return render_template('signup.html')
+    res = render_template('signup.html')
+    session['email'] = ''
+    session['name'] = ''
+    return res
 
 @auth.route('/signup', methods=['POST'])
 def signup_post():
-    email = request.form.get('email')
-    name = request.form.get('name')
+    session['email'] = email = request.form.get('email')
+    session['name'] = name = request.form.get('name')
     password = request.form.get('password')
     password2 = request.form.get('password2')
+
+    if not password or \
+        not password2 or \
+        not email or \
+        not name or \
+        not request.form.get('captcha'):
+        flash('Все поля должны быть заполнены!')
+        return redirect(url_for('auth.signup'))
+
+    if not captcha.validate():
+        flash('Неверный код с картинки!')
+        return redirect(url_for('auth.signup'))
+
     if password != password2:
         flash('Пароли не совпадают!')
         return redirect(url_for('auth.signup'))
