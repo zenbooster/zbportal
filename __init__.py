@@ -1,3 +1,4 @@
+import uuid
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -7,6 +8,7 @@ db = SQLAlchemy()
 
 def create_app(host, port, usr, pwd):
     app = Flask(__name__)
+    app.config['SECRET_KEY'] = str(uuid.uuid4())
 
     db_uri = 'mysql+pymysql://{}:{}@{}:{}/{}'. \
         format(
