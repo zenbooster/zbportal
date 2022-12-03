@@ -4,23 +4,26 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_sessionstore import Session
 from flask_session_captcha import FlaskSessionCaptcha
+from flask_redmail import RedMail
 
 # init SQLAlchemy so we can use it later in our models
 db = SQLAlchemy()
 captcha = None
+rmail = None
 
-def create_app(host, port, usr, pwd):
+def create_app(db_host, db_port, db_usr, db_pwd, em_host, em_port, em_usr, em_pwd):
     global captcha
+    global rmail
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = str(uuid.uuid4())
 
     db_uri = 'mysql+pymysql://{}:{}@{}:{}/{}'. \
         format(
-            usr,
-            pwd,
-            host,
-            port,
+            db_usr,
+            db_pwd,
+            db_host,
+            db_port,
             'zbportal'
         )
 
@@ -35,11 +38,17 @@ def create_app(host, port, usr, pwd):
     # In case you want to use another key in your session to store the captcha:
     app.config['CAPTCHA_SESSION_KEY'] = 'captcha_image'
     app.config['SESSION_TYPE'] = 'sqlalchemy'
+    # Configure the sender
+    app.config["EMAIL_HOST"] = em_host
+    app.config["EMAIL_PORT"] = em_port
+    app.config["EMAIL_USERNAME"] = em_usr
+    app.config["EMAIL_PASSWORD"] = em_pwd
     # Enables server session
     Session(app)
     # Initialize FlaskSessionCaptcha
     with app.app_context():
         captcha = FlaskSessionCaptcha(app)
+    rmail = RedMail(app)
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'

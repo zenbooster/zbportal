@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required
 from flask_sessionstore import Session
+import jwt
 from .models import User
-from . import db, captcha
+from . import db, captcha, rmail
 
 auth = Blueprint('auth', __name__)
 
@@ -30,6 +31,7 @@ def login_post():
 
     # if the above check passes, then we know the user has the right credentials
     login_user(user, remember=remember)
+
     return redirect(url_for('main.profile'))
 
 @auth.route('/signup')
@@ -67,6 +69,30 @@ def signup_post():
         flash('Пользователь с такой почтой уже существует!')
         return redirect(url_for('auth.signup'))
 
+    token = jwt.encode(
+        {
+            "email": email,
+            "name": name,
+            "password": password,
+        }, current_app.config["SECRET_KEY"]
+    )
+    rmail.send(
+        subject="проверка почты",
+        receivers=email,
+        html_template="email/verify.html",
+        body_params={
+            "name": name,
+            "token": token
+        }
+    )
+    return render_template("verify_email.html")
+
+@auth.route("/verify-email/<token>")
+def verify_email(token):
+    data = jwt.decode(token, current_app.config["SECRET_KEY"])
+    email = data["email"]
+    name = data["name"]
+    password = data["password"]
     # create a new user with the form data. Hash the password so the plaintext version isn't saved.
     new_user = User(email=email, name=name, password=generate_password_hash(password, method='sha256'))
 
